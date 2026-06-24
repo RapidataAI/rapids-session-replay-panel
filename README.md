@@ -26,6 +26,7 @@ One query/frame, ordered by `t`:
 | `x`, `y` | tap position, **normalized 0..1** of the viewport |
 | `session_id` | *(optional)* the session — else the panel uses the `${session_id}` dashboard variable |
 | `vw`, `vh` | *(optional)* viewport px for the canvas aspect (else the `canvasWidth/Height` options) |
+| `kind` | *(optional)* if present, only rows with `kind = 'tap'` are plotted (markers like `rapid_loaded` are ignored) |
 
 ### Example query (ClickHouse datasource)
 ```sql

@@ -21,6 +21,7 @@ const fieldValue = (f: { values: any }, i: number) =>
 function parseFrame(frame: DataFrame): Parsed {
   const by = (n: string) => frame.fields.find((f) => f.name === n);
   const tF = by('t') ?? by('time') ?? frame.fields[0];
+  const kindF = by('kind');
   const xF = by('x');
   const yF = by('y');
   const sessF = by('session_id') ?? by('session');
@@ -31,6 +32,12 @@ function parseFrame(frame: DataFrame): Parsed {
   for (let i = 0; i < frame.length; i++) {
     if (sessF && !sessionId) {
       sessionId = String(fieldValue(sessF, i) ?? '') || undefined;
+    }
+    // when a `kind` column is present, only the tap rows are cursor positions;
+    // rapid_loaded / modal_close markers sit at (0,0) and must not be plotted.
+    const kind = kindF ? String(fieldValue(kindF, i)) : 'tap';
+    if (kind !== 'tap') {
+      continue;
     }
     taps.push({
       t: Number(fieldValue(tF, i)),

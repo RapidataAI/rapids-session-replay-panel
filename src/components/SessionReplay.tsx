@@ -215,7 +215,9 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   const canvasW = parsed.vw || options.canvasWidth || 390;
   const canvasH = parsed.vh || options.canvasHeight || 844;
   const sessionUrl = sessionId
-    ? `${options.previewBaseUrl}?id=${encodeURIComponent(sessionId)}${options.rewardModal ? '&rewardOnComplete=true' : ''}`
+    ? `${options.previewBaseUrl}?id=${encodeURIComponent(sessionId)}${options.rewardModal ? '&rewardOnComplete=true' : ''}${
+        options.interact ? '&replay=true' : ''
+      }`
     : '';
 
   const [playhead, setPlayhead] = useState(0);
@@ -227,6 +229,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   const lastTsRef = useRef<number>();
   const lastRippleIdxRef = useRef<number>(-1);
   const playheadRef = useRef(0);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
   playheadRef.current = playhead;
 
   useEffect(() => {
@@ -255,6 +258,12 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
           const r = timeline.ripples[i];
           setActiveRipple({ key: i, x: r.x, y: r.y });
           lastRippleIdxRef.current = i;
+          if (options.interact) {
+            iframeRef.current?.contentWindow?.postMessage(
+              { source: 'rapidata-session-replay', type: 'tap', x: r.x, y: r.y },
+              '*'
+            );
+          }
         }
       }
       setPlayhead(next);
@@ -270,7 +279,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [timeline, playing, speed]);
+  }, [timeline, playing, speed, options.interact]);
 
   useEffect(() => {
     if (!options.debug) {
@@ -320,7 +329,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     <div className={styles.wrap}>
       <div className={styles.stage} style={{ width: stageW, height: stageH }}>
         <div className={styles.inner} style={{ width: canvasW, height: canvasH, transform: `scale(${scale})` }}>
-          <iframe className={styles.frame} src={sessionUrl} title="session backdrop" />
+          <iframe ref={iframeRef} className={styles.frame} src={sessionUrl} title="session backdrop" />
         </div>
         {activeRipple && (
           <span

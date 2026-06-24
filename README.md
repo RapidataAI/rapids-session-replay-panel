@@ -66,6 +66,10 @@ Without `vw`/`vh` the panel falls back to the `canvasWidth`/`canvasHeight` optio
 - **Debug** — overlay every tap as a numbered marker (with its normalized `x,y`) and
   log a table of taps (raw `x/y` + pixel coords + the viewport in use) to the browser
   console, so you can verify click positions against another replay.
+- **Interact (experimental)** — append `?replay=true` and `postMessage` each tap to the
+  backdrop so it *actually* clicks (closes the reward modal, selects options). Requires
+  `/inspect/session` replay support. Caveats: synthetic events are `isTrusted:false`,
+  `elementFromPoint` depends on the layout matching the viewport, and only taps replay.
 
 ## Limitations
 - Tap-only fidelity; the backdrop is the live `/inspect/session` render. The cursor

@@ -6,4 +6,5 @@ export interface SessionReplayOptions {
   cursorColor: string;
   rewardModal: boolean;
   debug: boolean;
+  interact: boolean;
 }

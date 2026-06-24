@@ -1,63 +1,56 @@
 # Rapids Session Replay (Grafana panel)
 
-A Grafana panel that **replays a single session's interactions** as an animated
-cursor over the **live rapid preview**, reconstructed from Rapidata logs. Scope
-it with a `session_id` dashboard variable; it has play / scrub / speed controls.
+A Grafana panel that **replays a single session's interactions** with `rrweb-player`
+(scrub / play / speed / skip-inactivity) — an animated cursor over the **actual
+session**, rendered live via rapids-frontend's `/inspect/session?id=<session_id>`.
 
-It is a best-effort **tap replay** (our `session.click` is a *pointerdown*), not
-a pixel-perfect DOM recording — there is no captured DOM/scroll/typed-input. The
-backdrop is the real, *live* preview of the rapid, and the panel swaps it at the
-state transitions it can infer (reward-modal close, `rapid.loaded`).
+Scope it with a `session_id` dashboard variable. Best-effort **tap replay** (our
+`session.click` is a *pointerdown*), not a pixel-perfect DOM recording.
+
+## How it works
+1. The query returns the session's **tap stream** (`session.click`).
+2. The panel builds an rrweb event stream: `Meta` + `FullSnapshot` whose body holds
+   an `<iframe>` of `${previewBaseUrl}?id=<session_id>` (default `/inspect/session`,
+   which loads the real session via `inspectSession`), then per tap a
+   `MouseMove`+`Click`.
+3. Renders `rrweb-player`, scaled to the panel.
 
 ## Data contract
-Feed the panel **one query** returning a long-format frame (ordered by `t`):
+One query/frame, ordered by `t`:
 
 | column | meaning |
 |---|---|
-| `t` | event time, epoch **ms** |
-| `kind` | `tap` \| `rapid_loaded` \| `modal_close` |
-| `x`, `y` | tap position, **normalized 0..1** of the viewport (only for `tap`) |
-| `label` | element/answer label (button text or tag) |
-| `rapid_id` | the rapid on screen at that event |
-
-The panel tracks the current rapid (latest `rapid_id` / `rapid_loaded`) and
-whether the reward modal is open (until the first `modal_close`), and renders
-`${previewBaseUrl}?id=<rapid_id>&rewardOnComplete=<modal?>` as the backdrop.
+| `t` | tap time, epoch **ms** |
+| `x`, `y` | tap position, **normalized 0..1** of the viewport |
+| `session_id` | *(optional)* the session — else the panel uses the `${session_id}` dashboard variable |
+| `vw`, `vh` | *(optional)* viewport px for the canvas aspect (else the `canvasWidth/Height` options) |
+| `kind` | *(optional)* only rows with `kind = 'tap'` (or no `kind`) are plotted |
 
 ### Example query (ClickHouse datasource)
 ```sql
-SELECT toUnixTimestamp64Milli(timestamp) AS t, 'tap' AS kind,
+SELECT toUnixTimestamp64Milli(timestamp) AS t,
        toFloat64OrNull(attributes['position.x']) AS x,
-       toFloat64OrNull(attributes['position.y']) AS y,
-       coalesce(nullIf(attributes['button.text'], ''), attributes['tag.name']) AS label,
-       rapid_id
+       toFloat64OrNull(attributes['position.y']) AS y
 FROM frontend.metrics
 WHERE session_id = '${session_id}' AND metric_name = 'session.click' AND $__timeFilter(timestamp)
-UNION ALL
-SELECT toUnixTimestamp64Milli(timestamp), 'rapid_loaded', 0, 0, 'rapid.loaded', rapid_id
-FROM frontend.metrics
-WHERE session_id = '${session_id}' AND metric_name = 'rapid.loaded' AND $__timeFilter(timestamp)
-UNION ALL
-SELECT toUnixTimestamp64Milli(Timestamp), 'modal_close', 0, 0, 'reward modal closed', ''
-FROM otel.session_logs
-WHERE LogAttributes['session.id'] = '${session_id}' AND ServiceName = 'Rapidata.RapidsFrontend'
-  AND Body = 'Closed Reward-on-complete modal' AND $__timeFilter(TimestampTime)
 ORDER BY t
 ```
 
 ## Options
-- **Rapid preview base URL** — default `https://rapids.rapidata.ai/preview/rapid`.
-  The `?rewardOnComplete=true` the panel appends needs the rapids-frontend support
-  so the reward modal renders in the preview.
+- **Rapid preview base URL** — default `https://rapids.rapidata.ai/inspect/session`;
+  the panel appends `?id=<session_id>`.
+- **Canvas width / height** — replay canvas size (portrait ~390×844, landscape
+  ~850×393); overridden by `vw`/`vh` columns.
 
 ## Limitations
-- Tap-only fidelity; the backdrop is the *current* live render of the rapid, not
-  a historical capture. Swapping rapids reloads the iframe (brief flicker).
-- Coordinates are normalized to the session's own viewport; ~1% land off-canvas.
-- A small fraction of sessions have corrupted timestamps (clock skew) that can
-  break ordering.
+- Tap-only fidelity; the backdrop is the live `/inspect/session` render. The cursor
+  is a visual overlay — it does not drive the backdrop, so for multi-rapid sessions
+  the later taps overlay the session's current screen rather than advancing it.
+- Coordinates are normalized to the session viewport; ~1% land off-canvas.
+- rrweb may sandbox the cross-origin iframe on replay; if the backdrop is blank, the
+  fallback is screenshot backdrops. Some sessions have clock-skewed timestamps.
 
 ## Install / develop
-Unsigned plugin; installed into Grafana the same way as `rapids-preview-panel`
+Unsigned plugin; installed into Grafana like `rapids-preview-panel`
 (`GF_PLUGINS_PREINSTALL` URL-zip + `GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS`).
-`npm run dev` / `npm run build` / `npm run typecheck` for local work.
+`npm run dev` / `npm run build` / `npm run typecheck`.

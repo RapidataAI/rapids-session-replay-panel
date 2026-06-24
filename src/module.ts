@@ -7,8 +7,8 @@ export const plugin = new PanelPlugin<SessionReplayOptions>(SessionReplayPanel).
     .addTextInput({
       path: 'previewBaseUrl',
       name: 'Rapid preview base URL',
-      description: 'The panel appends ?id=<rapid_id>&rewardOnComplete=… for the replay backdrop.',
-      defaultValue: 'https://rapids.rapidata.ai/preview/rapid',
+      description: 'The session backdrop: the panel appends ?id=<session_id> (e.g. /inspect/session).',
+      defaultValue: 'https://rapids.rapidata.ai/inspect/session',
     })
     .addNumberInput({
       path: 'canvasWidth',

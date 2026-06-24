@@ -10,21 +10,15 @@ import { SessionReplayOptions } from 'types';
 
 interface Props extends PanelProps<SessionReplayOptions> {}
 
-type Kind = 'tap' | 'rapid_loaded' | 'modal_close';
-interface Row {
-  t: number;
-  kind: Kind;
-  x: number;
+interface Tap {
+  t: number; // epoch ms
+  x: number; // 0..1 of viewport
   y: number;
-  label: string;
-  rapid: string;
-  vw?: number;
-  vh?: number;
 }
 
 // --- rrweb schema enums ---
 const EVT = { FullSnapshot: 2, Incremental: 3, Meta: 4 };
-const SRC = { Mutation: 0, MouseMove: 1, MouseInteraction: 2 };
+const SRC = { MouseMove: 1, MouseInteraction: 2 };
 const MI_CLICK = 2;
 const NT = { Document: 0, Doctype: 1, Element: 2 };
 const BODY_ID = 5;
@@ -33,37 +27,45 @@ const FRAME_ID = 6;
 const fieldValue = (f: { values: any }, i: number) =>
   typeof f.values?.get === 'function' ? f.values.get(i) : f.values[i];
 
-function parseRows(frame: DataFrame): Row[] {
+interface Parsed {
+  taps: Tap[];
+  sessionId?: string;
+  vw?: number;
+  vh?: number;
+}
+
+function parseFrame(frame: DataFrame): Parsed {
   const by = (n: string) => frame.fields.find((f) => f.name === n);
   const tF = by('t') ?? by('time') ?? frame.fields[0];
   const kindF = by('kind');
   const xF = by('x');
   const yF = by('y');
-  const labelF = by('label');
-  const rapidF = by('rapid_id') ?? by('rapid');
+  const sessF = by('session_id') ?? by('session');
   const vwF = by('vw');
   const vhF = by('vh');
-  const rows: Row[] = [];
+  const taps: Tap[] = [];
+  let sessionId: string | undefined;
   for (let i = 0; i < frame.length; i++) {
-    rows.push({
-      t: Number(fieldValue(tF, i)),
-      kind: (kindF ? String(fieldValue(kindF, i)) : 'tap') as Kind,
-      x: xF ? Number(fieldValue(xF, i)) : 0,
-      y: yF ? Number(fieldValue(yF, i)) : 0,
-      label: labelF ? String(fieldValue(labelF, i) ?? '') : '',
-      rapid: rapidF ? String(fieldValue(rapidF, i) ?? '') : '',
-      vw: vwF ? Number(fieldValue(vwF, i)) : undefined,
-      vh: vhF ? Number(fieldValue(vhF, i)) : undefined,
-    });
+    if (sessF && !sessionId) {
+      sessionId = String(fieldValue(sessF, i) ?? '') || undefined;
+    }
+    const kind = kindF ? String(fieldValue(kindF, i)) : 'tap';
+    if (kind === 'tap') {
+      taps.push({ t: Number(fieldValue(tF, i)), x: xF ? Number(fieldValue(xF, i)) : 0, y: yF ? Number(fieldValue(yF, i)) : 0 });
+    }
   }
-  return rows.filter((r) => Number.isFinite(r.t)).sort((a, b) => a.t - b.t);
+  return {
+    taps: taps.filter((t) => Number.isFinite(t.t)).sort((a, b) => a.t - b.t),
+    sessionId,
+    vw: vwF && frame.length ? Number(fieldValue(vwF, 0)) : undefined,
+    vh: vhF && frame.length ? Number(fieldValue(vhF, 0)) : undefined,
+  };
 }
 
 function snapshotNode(w: number, h: number, src: string) {
-  const img = {
+  const iframe = {
     type: NT.Element, id: FRAME_ID, tagName: 'iframe',
-    attributes: { src, width: String(w), height: String(h),
-      style: `display:block;width:${w}px;height:${h}px;border:none;` },
+    attributes: { src, width: String(w), height: String(h), style: `display:block;width:${w}px;height:${h}px;border:none;` },
     childNodes: [],
   };
   return {
@@ -73,46 +75,25 @@ function snapshotNode(w: number, h: number, src: string) {
         { type: NT.Element, id: 4, tagName: 'head', attributes: {}, childNodes: [] },
         { type: NT.Element, id: BODY_ID, tagName: 'body',
           attributes: { style: `margin:0;width:${w}px;height:${h}px;position:relative;overflow:hidden;` },
-          childNodes: [img] },
+          childNodes: [iframe] },
       ]},
     ],
   };
 }
 
-function buildEvents(rows: Row[], w: number, h: number, base: string) {
-  const t0 = rows[0].t - 500;
-  const url = (rapid: string, modal: boolean) =>
-    `${base}?id=${encodeURIComponent(rapid)}${modal ? '&rewardOnComplete=true' : ''}`;
-  const swap = (src: string, ts: number) => ({
-    type: EVT.Incremental, timestamp: ts,
-    data: { source: SRC.Mutation, texts: [], removes: [], adds: [],
-      attributes: [{ id: FRAME_ID, attributes: { src } }] },
-  });
-
-  let curRapid = rows.find((r) => r.rapid)?.rapid ?? '';
-  let modal = true;
+function buildEvents(taps: Tap[], w: number, h: number, sessionUrl: string) {
+  const t0 = taps[0].t - 500;
   const events: any[] = [
-    { type: EVT.Meta, timestamp: t0, data: { href: url(curRapid, modal), width: w, height: h } },
-    { type: EVT.FullSnapshot, timestamp: t0,
-      data: { node: snapshotNode(w, h, url(curRapid, modal)), initialOffset: { left: 0, top: 0 } } },
+    { type: EVT.Meta, timestamp: t0, data: { href: sessionUrl, width: w, height: h } },
+    { type: EVT.FullSnapshot, timestamp: t0, data: { node: snapshotNode(w, h, sessionUrl), initialOffset: { left: 0, top: 0 } } },
   ];
-
-  for (const r of rows) {
-    if (r.rapid && r.rapid !== curRapid) {
-      curRapid = r.rapid;
-      events.push(swap(url(curRapid, modal), r.t - 1));
-    }
-    if (r.kind === 'modal_close' && modal) {
-      modal = false;
-      events.push(swap(url(curRapid, modal), r.t));
-    } else if (r.kind === 'tap') {
-      const px = Math.round(r.x * w);
-      const py = Math.round(r.y * h);
-      events.push({ type: EVT.Incremental, timestamp: r.t - 120,
-        data: { source: SRC.MouseMove, positions: [{ x: px, y: py, id: BODY_ID, timeOffset: 0 }] } });
-      events.push({ type: EVT.Incremental, timestamp: r.t,
-        data: { source: SRC.MouseInteraction, type: MI_CLICK, id: BODY_ID, x: px, y: py } });
-    }
+  for (const tp of taps) {
+    const px = Math.round(tp.x * w);
+    const py = Math.round(tp.y * h);
+    events.push({ type: EVT.Incremental, timestamp: tp.t - 120,
+      data: { source: SRC.MouseMove, positions: [{ x: px, y: py, id: BODY_ID, timeOffset: 0 }] } });
+    events.push({ type: EVT.Incremental, timestamp: tp.t,
+      data: { source: SRC.MouseInteraction, type: MI_CLICK, id: BODY_ID, x: px, y: py } });
   }
   events.sort((a, b) => a.timestamp - b.timestamp);
   return events;
@@ -129,16 +110,20 @@ const getStyles = () => ({
   `,
 });
 
-export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id }) => {
+export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id, replaceVariables }) => {
   const styles = useStyles2(getStyles);
   const hostRef = useRef<HTMLDivElement>(null);
-  const rows = useMemo(() => (data.series[0] ? parseRows(data.series[0]) : []), [data.series]);
+  const parsed = useMemo(() => (data.series[0] ? parseFrame(data.series[0]) : { taps: [] }), [data.series]);
 
-  const canvasW = rows[0]?.vw || options.canvasWidth || 390;
-  const canvasH = rows[0]?.vh || options.canvasHeight || 844;
+  // Session id drives the /inspect/session backdrop: from a session_id column, else the dashboard variable.
+  const sessionId = parsed.sessionId || replaceVariables('${session_id}');
+  const canvasW = parsed.vw || options.canvasWidth || 390;
+  const canvasH = parsed.vh || options.canvasHeight || 844;
+  const sessionUrl = `${options.previewBaseUrl}?id=${encodeURIComponent(sessionId)}`;
+
   const events = useMemo(
-    () => (rows.length ? buildEvents(rows, canvasW, canvasH, options.previewBaseUrl) : []),
-    [rows, canvasW, canvasH, options.previewBaseUrl]
+    () => (parsed.taps.length ? buildEvents(parsed.taps, canvasW, canvasH, sessionUrl) : []),
+    [parsed.taps, canvasW, canvasH, sessionUrl]
   );
 
   useEffect(() => {
@@ -147,7 +132,6 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
       return;
     }
     host.innerHTML = '';
-    // Fit the canvas into the panel.
     const playerWidth = Math.min(width - 8, canvasW);
     const player = new rrwebPlayer({
       target: host,
@@ -171,7 +155,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     };
   }, [events, width, height, canvasW, canvasH]);
 
-  if (rows.length === 0) {
+  if (parsed.taps.length === 0) {
     return <PanelDataErrorView fieldConfig={fieldConfig} panelId={id} data={data} needsStringField />;
   }
 

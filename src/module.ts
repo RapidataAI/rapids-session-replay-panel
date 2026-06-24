@@ -44,4 +44,10 @@ export const plugin = new PanelPlugin<SessionReplayOptions>(SessionReplayPanel).
       description: 'Overlay every tap as a numbered marker and log the parsed taps (raw x/y + pixel coords + viewport) to the browser console.',
       defaultValue: false,
     })
+    .addBooleanSwitch({
+      path: 'interact',
+      name: 'Interact (experimental)',
+      description: 'Drive the real UI: append ?replay=true and postMessage each tap to the backdrop so it actually clicks (closes the reward modal, selects options). Requires /inspect/session replay support.',
+      defaultValue: false,
+    })
 );

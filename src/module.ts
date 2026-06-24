@@ -21,4 +21,15 @@ export const plugin = new PanelPlugin<SessionReplayOptions>(SessionReplayPanel).
       name: 'Canvas height',
       defaultValue: 844,
     })
+    .addNumberInput({
+      path: 'maxIdleMs',
+      name: 'Max idle (ms)',
+      description: 'Long gaps between taps are compressed to this, so dead time does not dominate playback. 0 disables compression.',
+      defaultValue: 2500,
+    })
+    .addTextInput({
+      path: 'cursorColor',
+      name: 'Cursor colour',
+      defaultValue: '#ff3b30',
+    })
 );

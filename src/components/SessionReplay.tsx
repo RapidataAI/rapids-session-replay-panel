@@ -191,7 +191,6 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   const playheadRef = useRef(0);
   playheadRef.current = playhead;
 
-  // Reset playback whenever the underlying timeline changes (new session / data).
   useEffect(() => {
     setPlayhead(0);
     setPlaying(true);
@@ -213,7 +212,6 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
       if (next >= timeline.duration) {
         next = timeline.duration;
       }
-      // fire the ripple for any tap we just crossed
       for (let i = lastRippleIdxRef.current + 1; i < timeline.ripples.length; i++) {
         if (timeline.ripples[i].pt <= next) {
           const r = timeline.ripples[i];
@@ -257,7 +255,6 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   const onScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
     const v = Number(e.target.value);
     setPlayhead(v);
-    // re-arm ripple tracking to the scrub position
     lastRippleIdxRef.current = timeline.ripples.reduce((acc, r, i) => (r.pt <= v ? i : acc), -1);
   };
   const ended = playhead >= timeline.duration;

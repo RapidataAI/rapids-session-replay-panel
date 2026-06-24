@@ -35,7 +35,7 @@
       },
       "id": 1,
       "options": {
-        "previewBaseUrl": "https://rapids.rapidata.ai/preview/rapid"
+        "previewBaseUrl": "https://rapids.rapidata.ai/inspect/session"
       },
       "targets": [
         {
@@ -61,7 +61,11 @@
         "name": "session_id",
         "label": "Session ID",
         "type": "textbox",
-        "current": { "selected": false, "text": "", "value": "" },
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
         "query": "",
         "options": [],
         "hide": 0,
@@ -75,7 +79,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Rapids Session Replay — sample",
+  "title": "Rapids Session Replay \u2014 sample",
   "uid": "a538aeff-5a8a-42a5-901c-938d896fdd6f",
   "version": 2,
   "weekStart": ""

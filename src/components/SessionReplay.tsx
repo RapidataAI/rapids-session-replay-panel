@@ -29,10 +29,22 @@ function parseFrame(frame: DataFrame): Parsed {
   const vhF = by('vh');
   const taps: Tap[] = [];
   let sessionId: string | undefined;
+  let vw: number | undefined;
+  let vh: number | undefined;
+  // First finite value wins — vw/vh may ride on a viewport-marker row, not a tap row.
+  const firstFinite = (cur: number | undefined, f: typeof vwF, i: number) => {
+    if (cur !== undefined || !f) {
+      return cur;
+    }
+    const v = Number(fieldValue(f, i));
+    return Number.isFinite(v) && v > 0 ? v : undefined;
+  };
   for (let i = 0; i < frame.length; i++) {
     if (sessF && !sessionId) {
       sessionId = String(fieldValue(sessF, i) ?? '') || undefined;
     }
+    vw = firstFinite(vw, vwF, i);
+    vh = firstFinite(vh, vhF, i);
     // when a `kind` column is present, only the tap rows are cursor positions;
     // rapid_loaded / modal_close markers sit at (0,0) and must not be plotted.
     const kind = kindF ? String(fieldValue(kindF, i)) : 'tap';
@@ -48,8 +60,8 @@ function parseFrame(frame: DataFrame): Parsed {
   return {
     taps: taps.filter((t) => Number.isFinite(t.t)).sort((a, b) => a.t - b.t),
     sessionId,
-    vw: vwF && frame.length ? Number(fieldValue(vwF, 0)) : undefined,
-    vh: vhF && frame.length ? Number(fieldValue(vhF, 0)) : undefined,
+    vw,
+    vh,
   };
 }
 

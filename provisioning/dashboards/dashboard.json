@@ -45,7 +45,7 @@
           },
           "refId": "A",
           "scenarioId": "raw_frame",
-          "rawFrameContent": "[{\"columns\":[{\"text\":\"t\",\"type\":\"time\"},{\"text\":\"kind\",\"type\":\"string\"},{\"text\":\"x\",\"type\":\"number\"},{\"text\":\"y\",\"type\":\"number\"},{\"text\":\"label\",\"type\":\"string\"},{\"text\":\"rapid_id\",\"type\":\"string\"}],\"rows\":[[1700000000000,\"rapid_loaded\",0,0,\"rapid.loaded\",\"${session_id}\"],[1700000002500,\"tap\",0.32,0.41,\"option A\",\"${session_id}\"],[1700000004200,\"tap\",0.68,0.42,\"option B\",\"${session_id}\"],[1700000006000,\"tap\",0.50,0.78,\"submit\",\"${session_id}\"],[1700000007500,\"modal_close\",0,0,\"reward modal closed\",\"\"],[1700000009000,\"rapid_loaded\",0,0,\"rapid.loaded\",\"${session_id}\"],[1700000011000,\"tap\",0.25,0.55,\"option A\",\"${session_id}\"],[1700000013000,\"tap\",0.75,0.55,\"option B\",\"${session_id}\"],[1700000014500,\"tap\",0.50,0.80,\"submit\",\"${session_id}\"]]}]"
+          "rawFrameContent": "[{\"columns\":[{\"text\":\"t\",\"type\":\"time\"},{\"text\":\"kind\",\"type\":\"string\"},{\"text\":\"x\",\"type\":\"number\"},{\"text\":\"y\",\"type\":\"number\"},{\"text\":\"label\",\"type\":\"string\"},{\"text\":\"rapid_id\",\"type\":\"string\"},{\"text\":\"vw\",\"type\":\"number\"},{\"text\":\"vh\",\"type\":\"number\"}],\"rows\":[[1700000000000,\"rapid_loaded\",0,0,\"rapid.loaded\",\"${session_id}\",850,393],[1700000002500,\"tap\",0.32,0.41,\"option A\",\"${session_id}\",850,393],[1700000004200,\"tap\",0.68,0.42,\"option B\",\"${session_id}\",850,393],[1700000006000,\"tap\",0.5,0.78,\"submit\",\"${session_id}\",850,393],[1700000007500,\"modal_close\",0,0,\"reward modal closed\",\"\",850,393],[1700000009000,\"rapid_loaded\",0,0,\"rapid.loaded\",\"${session_id}\",850,393],[1700000011000,\"tap\",0.25,0.55,\"option A\",\"${session_id}\",850,393],[1700000013000,\"tap\",0.75,0.55,\"option B\",\"${session_id}\",850,393],[1700000014500,\"tap\",0.5,0.8,\"submit\",\"${session_id}\",850,393]]}]"
         }
       ],
       "title": "Session replay (set Session ID at the top)",
@@ -79,7 +79,7 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Rapids Session Replay \u2014 sample",
+  "title": "Rapids Session Replay — sample",
   "uid": "a538aeff-5a8a-42a5-901c-938d896fdd6f",
   "version": 2,
   "weekStart": ""

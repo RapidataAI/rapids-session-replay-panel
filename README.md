@@ -29,14 +29,28 @@ One query/frame, ordered by `t`:
 | `kind` | *(optional)* if present, only rows with `kind = 'tap'` are plotted (markers like `rapid_loaded` are ignored) |
 
 ### Example query (ClickHouse datasource)
+Pull the tap stream **and** the session's viewport so the canvas matches the real
+orientation (a landscape session must not be squeezed into the portrait default):
 ```sql
-SELECT toUnixTimestamp64Milli(timestamp) AS t,
-       toFloat64OrNull(attributes['position.x']) AS x,
-       toFloat64OrNull(attributes['position.y']) AS y
-FROM frontend.metrics
-WHERE session_id = '${session_id}' AND metric_name = 'session.click' AND $__timeFilter(timestamp)
+WITH vp AS (
+  SELECT toFloat64OrNull(attributes['viewport.width'])  AS vw,
+         toFloat64OrNull(attributes['viewport.height']) AS vh
+  FROM frontend.metrics
+  WHERE session_id = '${session_id}' AND metric_name = 'session.viewport'
+  ORDER BY timestamp LIMIT 1            -- the orientation the session started in
+)
+SELECT toUnixTimestamp64Milli(m.timestamp)         AS t,
+       toFloat64OrNull(m.attributes['position.x']) AS x,
+       toFloat64OrNull(m.attributes['position.y']) AS y,
+       vp.vw                                        AS vw,
+       vp.vh                                        AS vh
+FROM frontend.metrics m
+CROSS JOIN vp
+WHERE m.session_id = '${session_id}' AND m.metric_name = 'session.click' AND $__timeFilter(m.timestamp)
 ORDER BY t
 ```
+Without `vw`/`vh` the panel falls back to the `canvasWidth`/`canvasHeight` options
+(portrait 390×844 by default).
 
 ## Options
 - **Rapid preview base URL** — default `https://rapids.rapidata.ai/inspect/session`;

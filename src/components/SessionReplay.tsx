@@ -204,6 +204,19 @@ const getStyles = () => ({
     align-self: stretch;
     padding: 2px 4px;
   `,
+  waiting: css`
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 2px 10px;
+    border-radius: 10px;
+    background: rgba(0, 0, 0, 0.6);
+    color: #fff;
+    font-size: 11px;
+    pointer-events: none;
+    z-index: 5;
+  `,
 });
 
 export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id, replaceVariables }) => {
@@ -224,6 +237,9 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   const [playing, setPlaying] = useState(true);
   const [speed, setSpeed] = useState(1);
   const [activeRipple, setActiveRipple] = useState<{ key: number; x: number; y: number } | null>(null);
+  // In interact mode, hold playback until the backdrop says it's rendered, so
+  // the first tap doesn't fire during the loading screen. Always ready otherwise.
+  const [replayReady, setReplayReady] = useState(!options.interact);
 
   const rafRef = useRef<number>();
   const lastTsRef = useRef<number>();
@@ -238,8 +254,29 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     lastRippleIdxRef.current = -1;
   }, [timeline]);
 
+  // Wait for the backdrop's `ready` (interact mode) before starting the clock;
+  // fall back after a timeout so a missing/old handler can't hang playback.
   useEffect(() => {
-    if (!timeline || !playing) {
+    if (!options.interact) {
+      setReplayReady(true);
+      return;
+    }
+    setReplayReady(false);
+    const onMessage = (e: MessageEvent) => {
+      if (e.data?.source === 'rapidata-session-replay' && e.data?.type === 'ready') {
+        setReplayReady(true);
+      }
+    };
+    window.addEventListener('message', onMessage);
+    const fallback = window.setTimeout(() => setReplayReady(true), 10000);
+    return () => {
+      window.removeEventListener('message', onMessage);
+      window.clearTimeout(fallback);
+    };
+  }, [options.interact, sessionUrl, timeline]);
+
+  useEffect(() => {
+    if (!timeline || !playing || !replayReady) {
       return;
     }
     lastTsRef.current = undefined;
@@ -279,7 +316,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [timeline, playing, speed, options.interact]);
+  }, [timeline, playing, speed, options.interact, replayReady]);
 
   useEffect(() => {
     if (!options.debug) {
@@ -342,6 +379,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
           className={styles.cursor}
           style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%`, background: options.cursorColor || '#ff3b30' }}
         />
+        {options.interact && !replayReady && <div className={styles.waiting}>waiting for session…</div>}
         {options.debug &&
           parsed.taps.map((t, i) => (
             <React.Fragment key={i}>

@@ -35,7 +35,8 @@
       },
       "id": 1,
       "options": {
-        "previewBaseUrl": "https://rapids.rapidata.ai/inspect/session"
+        "previewBaseUrl": "https://rapids.rapidata.ai/inspect/session",
+        "rewardModal": true
       },
       "targets": [
         {

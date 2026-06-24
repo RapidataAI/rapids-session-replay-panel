@@ -176,7 +176,9 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   const sessionId = (parsed.sessionId || replaceVariables('${session_id}') || '').trim();
   const canvasW = parsed.vw || options.canvasWidth || 390;
   const canvasH = parsed.vh || options.canvasHeight || 844;
-  const sessionUrl = sessionId ? `${options.previewBaseUrl}?id=${encodeURIComponent(sessionId)}` : '';
+  const sessionUrl = sessionId
+    ? `${options.previewBaseUrl}?id=${encodeURIComponent(sessionId)}${options.rewardModal ? '&rewardOnComplete=true' : ''}`
+    : '';
 
   const [playhead, setPlayhead] = useState(0);
   const [playing, setPlaying] = useState(true);

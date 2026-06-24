@@ -32,4 +32,10 @@ export const plugin = new PanelPlugin<SessionReplayOptions>(SessionReplayPanel).
       name: 'Cursor colour',
       defaultValue: '#ff3b30',
     })
+    .addBooleanSwitch({
+      path: 'rewardModal',
+      name: 'Show reward modal',
+      description: 'Append ?rewardOnComplete=true so the backdrop shows the reward-on-complete modal (matches sessions that had it).',
+      defaultValue: true,
+    })
 );

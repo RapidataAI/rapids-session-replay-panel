@@ -60,6 +60,9 @@ Without `vw`/`vh` the panel falls back to the `canvasWidth`/`canvasHeight` optio
 - **Max idle (ms)** — long gaps between taps are compressed to this so dead time
   doesn't dominate playback (default 2500; 0 disables).
 - **Cursor colour** — the overlay cursor / tap-ripple colour.
+- **Show reward modal** — append `?rewardOnComplete=true` so the backdrop shows the
+  reward-on-complete modal (the modal an inspected session doesn't carry on its own;
+  requires rapids-frontend's `/inspect/session` to honor the param). Default on.
 
 ## Limitations
 - Tap-only fidelity; the backdrop is the live `/inspect/session` render. The cursor

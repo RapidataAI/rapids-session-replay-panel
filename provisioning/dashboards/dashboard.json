@@ -1,0 +1,87 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": {
+          "type": "grafana",
+          "uid": "-- Grafana --"
+        },
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": 1,
+  "links": [],
+  "liveNow": false,
+  "panels": [
+    {
+      "datasource": {
+        "type": "grafana-testdata-datasource",
+        "uid": "trlxrdZVk"
+      },
+      "gridPos": {
+        "h": 16,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 1,
+      "options": {
+        "previewBaseUrl": "https://rapids.rapidata.ai/inspect/session",
+        "rewardModal": true
+      },
+      "targets": [
+        {
+          "datasource": {
+            "type": "grafana-testdata-datasource",
+            "uid": "db84e60d-b92a-4089-82cb-34842fb1754b"
+          },
+          "refId": "A",
+          "scenarioId": "raw_frame",
+          "rawFrameContent": "[{\"columns\":[{\"text\":\"t\",\"type\":\"time\"},{\"text\":\"kind\",\"type\":\"string\"},{\"text\":\"x\",\"type\":\"number\"},{\"text\":\"y\",\"type\":\"number\"},{\"text\":\"label\",\"type\":\"string\"},{\"text\":\"rapid_id\",\"type\":\"string\"},{\"text\":\"vw\",\"type\":\"number\"},{\"text\":\"vh\",\"type\":\"number\"}],\"rows\":[[1700000000000,\"rapid_loaded\",0,0,\"rapid.loaded\",\"${session_id}\",850,393],[1700000002500,\"tap\",0.32,0.41,\"option A\",\"${session_id}\",850,393],[1700000004200,\"tap\",0.68,0.42,\"option B\",\"${session_id}\",850,393],[1700000006000,\"tap\",0.5,0.78,\"submit\",\"${session_id}\",850,393],[1700000007500,\"modal_close\",0,0,\"reward modal closed\",\"\",850,393],[1700000009000,\"rapid_loaded\",0,0,\"rapid.loaded\",\"${session_id}\",850,393],[1700000011000,\"tap\",0.25,0.55,\"option A\",\"${session_id}\",850,393],[1700000013000,\"tap\",0.75,0.55,\"option B\",\"${session_id}\",850,393],[1700000014500,\"tap\",0.5,0.8,\"submit\",\"${session_id}\",850,393]]}]"
+        }
+      ],
+      "title": "Session replay (set Session ID at the top)",
+      "type": "rapidata-sessionreplay-panel"
+    }
+  ],
+  "refresh": "",
+  "schemaVersion": 39,
+  "tags": [],
+  "templating": {
+    "list": [
+      {
+        "name": "session_id",
+        "label": "Session ID",
+        "type": "textbox",
+        "current": {
+          "selected": false,
+          "text": "",
+          "value": ""
+        },
+        "query": "",
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      }
+    ]
+  },
+  "time": {
+    "from": "now-6h",
+    "to": "now"
+  },
+  "timepicker": {},
+  "timezone": "",
+  "title": "Rapids Session Replay — sample",
+  "uid": "a538aeff-5a8a-42a5-901c-938d896fdd6f",
+  "version": 2,
+  "weekStart": ""
+}

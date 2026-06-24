@@ -28,16 +28,14 @@
         "uid": "trlxrdZVk"
       },
       "gridPos": {
-        "h": 8,
-        "w": 12,
+        "h": 16,
+        "w": 24,
         "x": 0,
         "y": 0
       },
       "id": 1,
       "options": {
-        "seriesCountSize": "sm",
-        "showSeriesCount": false,
-        "text": "Default value of text input option"
+        "previewBaseUrl": "https://rapids.rapidata.ai/preview/rapid"
       },
       "targets": [
         {
@@ -47,49 +45,29 @@
           },
           "refId": "A",
           "scenarioId": "raw_frame",
-          "rawFrameContent": "[\n  {\n    \"columns\": [\n      {\n        \"text\": \"Time\",\n        \"type\": \"time\"\n      },\n      {\n        \"text\": \"Label\",\n        \"type\": \"string\"\n      },\n      {\n        \"text\": \"Value\",\n        \"type\": \"number\"\n      }\n    ],\n    \"rows\": [\n      [1609459200000, \"A\", 10],\n      [1609462800000, \"B\", 20],\n      [1609466400000, \"C\", 15],\n      [1609470000000, \"D\", 25],\n      [1609473600000, \"E\", 30]\n    ]\n  },\n{\n    \"columns\": [\n      {\n        \"text\": \"Time\",\n        \"type\": \"time\"\n      },\n      {\n        \"text\": \"Label\",\n        \"type\": \"string\"\n      },\n      {\n        \"text\": \"Value\",\n        \"type\": \"number\"\n      }\n    ],\n    \"rows\": [\n      [1609459200000, \"A\", 40],\n      [1609462800000, \"B\", 50],\n      [1609466400000, \"C\", 45],\n      [1609470000000, \"D\", 55],\n      [1609473600000, \"E\", 60]\n    ]\n  }\n]"
+          "rawFrameContent": "[{\"columns\":[{\"text\":\"t\",\"type\":\"time\"},{\"text\":\"kind\",\"type\":\"string\"},{\"text\":\"x\",\"type\":\"number\"},{\"text\":\"y\",\"type\":\"number\"},{\"text\":\"label\",\"type\":\"string\"},{\"text\":\"rapid_id\",\"type\":\"string\"}],\"rows\":[[1700000000000,\"rapid_loaded\",0,0,\"rapid.loaded\",\"${session_id}\"],[1700000002500,\"tap\",0.32,0.41,\"option A\",\"${session_id}\"],[1700000004200,\"tap\",0.68,0.42,\"option B\",\"${session_id}\"],[1700000006000,\"tap\",0.50,0.78,\"submit\",\"${session_id}\"],[1700000007500,\"modal_close\",0,0,\"reward modal closed\",\"\"],[1700000009000,\"rapid_loaded\",0,0,\"rapid.loaded\",\"${session_id}\"],[1700000011000,\"tap\",0.25,0.55,\"option A\",\"${session_id}\"],[1700000013000,\"tap\",0.75,0.55,\"option B\",\"${session_id}\"],[1700000014500,\"tap\",0.50,0.80,\"submit\",\"${session_id}\"]]}]"
         }
       ],
-      "title": "Sample Panel Title",
-      "type": "rapidata-rapidspreview-panel"
-    },
-    {
-      "datasource": {
-        "type": "grafana-testdata-datasource",
-        "uid": "trlxrdZVk"
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 0
-      },
-      "id": 2,
-      "options": {
-        "seriesCountSize": "sm",
-        "showSeriesCount": false,
-        "text": "Default value of text input option"
-      },
-      "targets": [
-        {
-          "alias": "",
-          "datasource": {
-            "type": "grafana-testdata-datasource",
-            "uid": "db84e60d-b92a-4089-82cb-34842fb1754b"
-          },
-          "refId": "A",
-          "scenarioId": "no_data_points"
-        }
-      ],
-      "title": "Sample Panel Title",
-      "type": "rapidata-rapidspreview-panel"
+      "title": "Session replay (set Session ID at the top)",
+      "type": "rapidata-sessionreplay-panel"
     }
   ],
   "refresh": "",
   "schemaVersion": 39,
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "name": "session_id",
+        "label": "Session ID",
+        "type": "textbox",
+        "current": { "selected": false, "text": "", "value": "" },
+        "query": "",
+        "options": [],
+        "hide": 0,
+        "skipUrlSync": false
+      }
+    ]
   },
   "time": {
     "from": "now-6h",
@@ -97,8 +75,8 @@
   },
   "timepicker": {},
   "timezone": "",
-  "title": "Provisioned rapids-preview dashboard",
+  "title": "Rapids Session Replay — sample",
   "uid": "a538aeff-5a8a-42a5-901c-938d896fdd6f",
-  "version": 1,
+  "version": 2,
   "weekStart": ""
 }

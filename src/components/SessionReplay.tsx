@@ -175,6 +175,35 @@ const getStyles = () => ({
     min-width: 80px;
     text-align: right;
   `,
+  dbgMarker: css`
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    margin: -5px 0 0 -5px;
+    border-radius: 50%;
+    background: rgba(0, 122, 255, 0.85);
+    box-shadow: 0 0 0 1px #fff;
+    pointer-events: none;
+    z-index: 4;
+  `,
+  dbgLabel: css`
+    position: absolute;
+    transform: translate(6px, -50%);
+    font-size: 10px;
+    font-weight: 700;
+    color: #007aff;
+    text-shadow: 0 0 2px #fff, 0 0 2px #fff;
+    pointer-events: none;
+    z-index: 4;
+    white-space: nowrap;
+  `,
+  dbgInfo: css`
+    font-size: 11px;
+    font-family: monospace;
+    opacity: 0.85;
+    align-self: stretch;
+    padding: 2px 4px;
+  `,
 });
 
 export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id, replaceVariables }) => {
@@ -243,6 +272,23 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     };
   }, [timeline, playing, speed]);
 
+  useEffect(() => {
+    if (!options.debug) {
+      return;
+    }
+    const rows = parsed.taps.map((t, i) => ({
+      i,
+      t: t.t,
+      x: Number(t.x.toFixed(4)),
+      y: Number(t.y.toFixed(4)),
+      px: Math.round(t.x * canvasW),
+      py: Math.round(t.y * canvasH),
+    }));
+    console.log('[session-replay] backdrop', { sessionId, viewport: `${canvasW}x${canvasH}`, fromColumns: { vw: parsed.vw, vh: parsed.vh }, sessionUrl, taps: parsed.taps.length });
+    // eslint-disable-next-line no-console -- console.table is the point of the debug dump
+    console.table(rows);
+  }, [options.debug, parsed, sessionId, canvasW, canvasH, sessionUrl]);
+
   if (!timeline || parsed.taps.length === 0) {
     return <PanelDataErrorView fieldConfig={fieldConfig} panelId={id} data={data} needsStringField />;
   }
@@ -287,7 +333,22 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
           className={styles.cursor}
           style={{ left: `${pos.x * 100}%`, top: `${pos.y * 100}%`, background: options.cursorColor || '#ff3b30' }}
         />
+        {options.debug &&
+          parsed.taps.map((t, i) => (
+            <React.Fragment key={i}>
+              <span className={styles.dbgMarker} style={{ left: `${t.x * 100}%`, top: `${t.y * 100}%` }} />
+              <span className={styles.dbgLabel} style={{ left: `${t.x * 100}%`, top: `${t.y * 100}%` }}>
+                {i} ({t.x.toFixed(2)},{t.y.toFixed(2)})
+              </span>
+            </React.Fragment>
+          ))}
       </div>
+      {options.debug && (
+        <div className={styles.dbgInfo}>
+          {sessionId} · {canvasW}×{canvasH}
+          {parsed.vw ? ' (from vw/vh)' : ' (default — query has no vw/vh)'} · {parsed.taps.length} taps
+        </div>
+      )}
       <div className={styles.controls} style={{ width: stageW }}>
         <button className={styles.btn} onClick={() => (ended ? restart() : setPlaying((p) => !p))}>
           {ended ? '↻' : playing ? '❚❚' : '▶'}

@@ -38,4 +38,10 @@ export const plugin = new PanelPlugin<SessionReplayOptions>(SessionReplayPanel).
       description: 'Append ?rewardOnComplete=true so the backdrop shows the reward-on-complete modal (matches sessions that had it).',
       defaultValue: true,
     })
+    .addBooleanSwitch({
+      path: 'debug',
+      name: 'Debug',
+      description: 'Overlay every tap as a numbered marker and log the parsed taps (raw x/y + pixel coords + viewport) to the browser console.',
+      defaultValue: false,
+    })
 );

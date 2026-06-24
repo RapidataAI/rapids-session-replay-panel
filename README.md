@@ -63,6 +63,9 @@ Without `vw`/`vh` the panel falls back to the `canvasWidth`/`canvasHeight` optio
 - **Show reward modal** — append `?rewardOnComplete=true` so the backdrop shows the
   reward-on-complete modal (the modal an inspected session doesn't carry on its own;
   requires rapids-frontend's `/inspect/session` to honor the param). Default on.
+- **Debug** — overlay every tap as a numbered marker (with its normalized `x,y`) and
+  log a table of taps (raw `x/y` + pixel coords + the viewport in use) to the browser
+  console, so you can verify click positions against another replay.
 
 ## Limitations
 - Tap-only fidelity; the backdrop is the live `/inspect/session` render. The cursor

@@ -5,4 +5,5 @@ export interface SessionReplayOptions {
   maxIdleMs: number;
   cursorColor: string;
   rewardModal: boolean;
+  debug: boolean;
 }

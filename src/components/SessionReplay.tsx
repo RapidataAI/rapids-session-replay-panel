@@ -165,9 +165,28 @@ const getStyles = () => ({
     opacity: 1;
     font-weight: 700;
   `,
-  scrub: css`
+  scrubWrap: css`
     flex: 1;
+    position: relative;
+    display: flex;
+    align-items: center;
+  `,
+  scrub: css`
+    width: 100%;
     cursor: pointer;
+    position: relative;
+    z-index: 1;
+  `,
+  tick: css`
+    position: absolute;
+    top: 50%;
+    width: 2px;
+    height: 9px;
+    margin-top: -4px;
+    background: #ff3b30;
+    border-radius: 1px;
+    pointer-events: none;
+    transform: translateX(-50%);
   `,
   time: css`
     font-variant-numeric: tabular-nums;
@@ -400,7 +419,17 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
         <button className={styles.btn} onClick={() => (ended ? restart() : setPlaying((p) => !p))}>
           {ended ? '↻' : playing ? '❚❚' : '▶'}
         </button>
-        <input className={styles.scrub} type="range" min={0} max={timeline.duration} value={playhead} onChange={onScrub} />
+        <div className={styles.scrubWrap}>
+          <input className={styles.scrub} type="range" min={0} max={timeline.duration} value={playhead} onChange={onScrub} />
+          {timeline.ripples.map((r, i) => (
+            <span
+              key={i}
+              className={styles.tick}
+              style={{ left: `${(r.pt / timeline.duration) * 100}%`, background: options.cursorColor || '#ff3b30' }}
+              title={`tap ${i} @ ${fmt(r.pt)}`}
+            />
+          ))}
+        </div>
         {SPEEDS.map((s) => (
           <button key={s} className={cx(styles.speed, s === speed && styles.speedOn)} onClick={() => setSpeed(s)}>
             {s}×

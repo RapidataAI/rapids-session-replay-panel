@@ -88,6 +88,15 @@ const getStyles = () => ({
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.2);
     background: #fff;
   `,
+  // Sized to the session's true viewport, then scaled to fit — so the embedded
+  // rapid lays out at the real device width (correct breakpoints), not the
+  // shrunken panel size.
+  inner: css`
+    position: absolute;
+    top: 0;
+    left: 0;
+    transform-origin: top left;
+  `,
   frame: css`
     border: 0;
     display: block;
@@ -241,7 +250,9 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     return <div className={styles.wrap}>No session id — add a `session_id` column or a `$session_id` dashboard variable.</div>;
   }
 
-  const scale = Math.min((width - 8) / canvasW, (height - CONTROLS_H - 8) / canvasH);
+  // Fit the true viewport into the panel; never upscale past 1:1, so the
+  // backdrop doesn't grow with the session — it only ever shrinks to fit.
+  const scale = Math.min((width - 8) / canvasW, (height - CONTROLS_H - 8) / canvasH, 1);
   const stageW = Math.max(1, Math.round(canvasW * scale));
   const stageH = Math.max(1, Math.round(canvasH * scale));
   const pos = cursorAt(timeline, playhead);
@@ -262,7 +273,9 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   return (
     <div className={styles.wrap}>
       <div className={styles.stage} style={{ width: stageW, height: stageH }}>
-        <iframe className={styles.frame} src={sessionUrl} title="session backdrop" />
+        <div className={styles.inner} style={{ width: canvasW, height: canvasH, transform: `scale(${scale})` }}>
+          <iframe className={styles.frame} src={sessionUrl} title="session backdrop" />
+        </div>
         {activeRipple && (
           <span
             key={activeRipple.key}

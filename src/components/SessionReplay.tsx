@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PanelProps, DataFrame } from '@grafana/data';
 import { PanelDataErrorView } from '@grafana/runtime';
 import { css, cx } from '@emotion/css';
@@ -331,6 +331,19 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     lastRippleIdxRef.current = -1;
   }, [timeline]);
 
+  // True once the backdrop has said hello. Tracked in a ref so we can send the
+  // order whenever it becomes available, even if the data query resolves after
+  // the hello (otherwise the order is silently dropped — a refresh-only flake).
+  const helloRef = useRef(false);
+  const sendOrder = useCallback(() => {
+    if (order.length && iframeRef.current?.contentWindow) {
+      iframeRef.current.contentWindow.postMessage(
+        { source: 'rapidata-session-replay', type: 'order', rapids: order },
+        '*'
+      );
+    }
+  }, [order]);
+
   // Wait for the backdrop's `ready` (interact mode) before starting the clock;
   // fall back after a timeout so a missing/old handler can't hang playback.
   useEffect(() => {
@@ -339,6 +352,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
       return;
     }
     setReplayReady(false);
+    helloRef.current = false;
     const onMessage = (e: MessageEvent) => {
       if (e.data?.source !== 'rapidata-session-replay') {
         return;
@@ -348,11 +362,9 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
       }
       // The backdrop asks for the recorded presentation order on mount; reply so
       // it can reorder assets to what the user saw before rendering.
-      if (e.data.type === 'replay-hello' && order.length) {
-        iframeRef.current?.contentWindow?.postMessage(
-          { source: 'rapidata-session-replay', type: 'order', rapids: order },
-          '*'
-        );
+      if (e.data.type === 'replay-hello') {
+        helloRef.current = true;
+        sendOrder();
       }
     };
     window.addEventListener('message', onMessage);
@@ -361,7 +373,14 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
       window.removeEventListener('message', onMessage);
       window.clearTimeout(fallback);
     };
-  }, [options.interact, sessionUrl, timeline, order]);
+  }, [options.interact, sessionUrl, timeline, sendOrder]);
+
+  // If the order query resolves after the backdrop already said hello, send it.
+  useEffect(() => {
+    if (helloRef.current) {
+      sendOrder();
+    }
+  }, [sendOrder]);
 
   useEffect(() => {
     if (!timeline || !playing || !replayReady) {

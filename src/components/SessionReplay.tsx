@@ -72,7 +72,7 @@ const fmt = (ms: number) => {
 
 const SPEEDS = [1, 2, 4, 8];
 const CONTROLS_H = 58;
-const ACCENT = '#5b6ee1';
+const ACCENT = '#4950f6';
 
 const getStyles = () => ({
   wrap: css`
@@ -202,14 +202,13 @@ const getStyles = () => ({
   tick: css`
     position: absolute;
     top: 50%;
-    width: 2px;
-    height: 9px;
-    margin-top: -4px;
+    width: 10px;
+    height: 5px;
+    border-radius: 3px;
     background: ${ACCENT};
-    border-radius: 1px;
     pointer-events: none;
-    transform: translateX(-50%);
-    opacity: 0.65;
+    transform: translate(-50%, -50%);
+    z-index: 2;
   `,
   time: css`
     font-variant-numeric: tabular-nums;

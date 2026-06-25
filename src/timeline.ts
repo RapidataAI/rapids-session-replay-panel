@@ -4,6 +4,7 @@ export interface Tap {
   y: number;
   tag?: string; // recorded element tag (tag.name)
   path?: string; // recorded element path (element.path), for divergence checks
+  reqLoads?: number; // rapids loaded before this tap (1-based); gates the tap on that rapid loading in the replay
 }
 
 export interface Segment {

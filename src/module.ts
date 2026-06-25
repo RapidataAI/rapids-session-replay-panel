@@ -24,19 +24,13 @@ export const plugin = new PanelPlugin<SessionReplayOptions>(SessionReplayPanel).
     .addNumberInput({
       path: 'maxIdleMs',
       name: 'Max idle (ms)',
-      description: 'Long gaps between taps are compressed to this, so dead time does not dominate playback. 0 disables compression.',
-      defaultValue: 2500,
+      description: 'Compress gaps longer than this so dead time does not dominate playback. 0 = real timing (recommended for accurate, spot-on click timing).',
+      defaultValue: 0,
     })
     .addTextInput({
       path: 'cursorColor',
       name: 'Cursor colour',
       defaultValue: '#ff3b30',
-    })
-    .addBooleanSwitch({
-      path: 'rewardModal',
-      name: 'Show reward modal',
-      description: 'Append ?rewardOnComplete=true so the backdrop shows the reward-on-complete modal (matches sessions that had it).',
-      defaultValue: true,
     })
     .addBooleanSwitch({
       path: 'debug',

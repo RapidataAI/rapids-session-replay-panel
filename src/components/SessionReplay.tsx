@@ -26,6 +26,7 @@ function parseFrame(frame: DataFrame): Parsed {
   const yF = by('y');
   const tagF = by('tag') ?? by('tagname');
   const pathF = by('path') ?? by('element_path');
+  const rlF = by('req_loads');
   const sessF = by('session_id') ?? by('session');
   const vwF = by('vw');
   const vhF = by('vh');
@@ -59,6 +60,7 @@ function parseFrame(frame: DataFrame): Parsed {
       y: yF ? Number(fieldValue(yF, i)) : 0,
       tag: tagF ? String(fieldValue(tagF, i) ?? '') || undefined : undefined,
       path: pathF ? String(fieldValue(pathF, i) ?? '') || undefined : undefined,
+      reqLoads: rlF ? Number(fieldValue(rlF, i)) || undefined : undefined,
     });
   }
   return {
@@ -377,15 +379,22 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     [data.series]
   );
   const orderSeries = useMemo(() => data.series.find((s) => s.fields.some((f) => f.name === 'option_order')), [data.series]);
+  const rewardSeries = useMemo(() => data.series.find((s) => s.fields.some((f) => f.name === 'reward')), [data.series]);
   const parsed = useMemo(() => (tapsSeries ? parseFrame(tapsSeries) : { taps: [] }), [tapsSeries]);
   const order = useMemo(() => (orderSeries ? parseOrder(orderSeries) : []), [orderSeries]);
-  const timeline = useMemo(() => (parsed.taps.length ? buildTimeline(parsed.taps, options.maxIdleMs ?? 2500) : null), [parsed.taps, options.maxIdleMs]);
+  // Detect whether this session actually had the reward modal (from the
+  // 'Closed Reward-on-complete modal' log), instead of forcing it via a toggle.
+  const hadReward = useMemo(() => {
+    const f = rewardSeries?.fields.find((x) => x.name === 'reward');
+    return !!(f && rewardSeries && rewardSeries.length > 0 && Number(fieldValue(f, 0)) > 0);
+  }, [rewardSeries]);
+  const timeline = useMemo(() => (parsed.taps.length ? buildTimeline(parsed.taps, options.maxIdleMs ?? 0) : null), [parsed.taps, options.maxIdleMs]);
 
   const sessionId = (parsed.sessionId || replaceVariables('${session_id}') || '').trim();
   const canvasW = parsed.vw || options.canvasWidth || 390;
   const canvasH = parsed.vh || options.canvasHeight || 844;
   const sessionUrl = sessionId
-    ? `${options.previewBaseUrl}?id=${encodeURIComponent(sessionId)}${options.rewardModal ? '&rewardOnComplete=true' : ''}${
+    ? `${options.previewBaseUrl}?id=${encodeURIComponent(sessionId)}${hadReward ? '&rewardOnComplete=true' : ''}${
         options.interact ? '&replay=true' : ''
       }`
     : '';
@@ -408,6 +417,10 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   const lastRippleIdxRef = useRef<number>(-1);
   const playheadRef = useRef(0);
   const iframeRef = useRef<HTMLIFrameElement>(null);
+  // Rapids that have actually loaded in the replay (from the backdrop's
+  // rapid-loaded messages). A tap is held until its rapid (reqLoads-1) is here,
+  // so a tap never fires before the page is on the right rapid — no pre-fire.
+  const loadedRapidsRef = useRef<Set<number>>(new Set());
   playheadRef.current = playhead;
 
   useEffect(() => {
@@ -415,6 +428,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     setPlaying(true);
     lastRippleIdxRef.current = -1;
     setTapResults({});
+    loadedRapidsRef.current = new Set();
   }, [timeline]);
 
   // True once the backdrop has said hello. Tracked in a ref so we can send the
@@ -439,12 +453,18 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     }
     setReplayReady(false);
     helloRef.current = false;
+    loadedRapidsRef.current = new Set();
     const onMessage = (e: MessageEvent) => {
       if (e.data?.source !== 'rapidata-session-replay') {
         return;
       }
       if (e.data.type === 'ready') {
         setReplayReady(true);
+      }
+      // Each rapid reports when it has rendered in the replay; a tap won't fire
+      // until its rapid is here (load-gating → no pre-fire).
+      if (e.data.type === 'rapid-loaded' && typeof e.data.index === 'number') {
+        loadedRapidsRef.current.add(e.data.index);
       }
       // The backdrop asks for the recorded presentation order on mount; reply so
       // it can reorder assets to what the user saw before rendering.
@@ -490,16 +510,24 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
         next = timeline.duration;
       }
       for (let i = lastRippleIdxRef.current + 1; i < timeline.ripples.length; i++) {
-        if (timeline.ripples[i].pt <= next) {
-          const r = timeline.ripples[i];
-          setActiveRipple({ key: i, x: r.x, y: r.y });
-          lastRippleIdxRef.current = i;
-          if (options.interact) {
-            iframeRef.current?.contentWindow?.postMessage(
-              { source: 'rapidata-session-replay', type: 'tap', x: r.x, y: r.y, i },
-              '*'
-            );
-          }
+        if (timeline.ripples[i].pt > next) {
+          break;
+        }
+        // Load gate (interact): hold the clock at this tap until its rapid has
+        // actually rendered in the replay, so the tap can't pre-fire.
+        const rapidIdx = (parsed.taps[i]?.reqLoads ?? 0) - 1;
+        if (options.interact && rapidIdx >= 0 && !loadedRapidsRef.current.has(rapidIdx)) {
+          next = timeline.ripples[i].pt;
+          break;
+        }
+        const r = timeline.ripples[i];
+        setActiveRipple({ key: i, x: r.x, y: r.y });
+        lastRippleIdxRef.current = i;
+        if (options.interact) {
+          iframeRef.current?.contentWindow?.postMessage(
+            { source: 'rapidata-session-replay', type: 'tap', x: r.x, y: r.y, i },
+            '*'
+          );
         }
       }
       setPlayhead(next);
@@ -515,7 +543,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
         cancelAnimationFrame(rafRef.current);
       }
     };
-  }, [timeline, playing, speed, options.interact, replayReady]);
+  }, [timeline, playing, speed, options.interact, replayReady, parsed]);
 
   useEffect(() => {
     if (!options.debug) {
@@ -553,6 +581,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     lastRippleIdxRef.current = -1;
     setActiveRipple(null);
     setTapResults({});
+    loadedRapidsRef.current = new Set();
     // Remount the iframe so the live backdrop resets (reward modal reappears);
     // synthetic clicks already applied to it can't be rewound otherwise.
     if (options.interact) {

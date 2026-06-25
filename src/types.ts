@@ -4,7 +4,6 @@ export interface SessionReplayOptions {
   canvasHeight: number;
   maxIdleMs: number;
   cursorColor: string;
-  rewardModal: boolean;
   debug: boolean;
   interact: boolean;
 }

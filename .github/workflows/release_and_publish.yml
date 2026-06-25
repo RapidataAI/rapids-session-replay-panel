@@ -66,7 +66,7 @@ jobs:
           PLUGIN_ID=$(node -p "require('./dist/plugin.json').id")
           mkdir -p "$PLUGIN_ID"
           cp -r dist/* "$PLUGIN_ID"/
-          zip -r rapids-session-replay-v${{ steps.update_version.outputs.new_version }}.zip "$PLUGIN_ID"
+          zip -r rapids-session-replay.zip "$PLUGIN_ID"
           rm -rf "$PLUGIN_ID"
 
       - name: Create GitHub Release
@@ -75,7 +75,7 @@ jobs:
           tag_name: v${{ steps.update_version.outputs.new_version }}
           name: Release v${{ steps.update_version.outputs.new_version }}
           files: |
-            rapids-session-replay-v${{ steps.update_version.outputs.new_version }}.zip
+            rapids-session-replay.zip
           body: |
             Release version ${{ steps.update_version.outputs.new_version }}
 

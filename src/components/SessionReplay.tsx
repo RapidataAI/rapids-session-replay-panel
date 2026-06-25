@@ -436,7 +436,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
           {parsed.vw ? ' (from vw/vh)' : ' (default — query has no vw/vh)'} · {parsed.taps.length} taps
         </div>
       )}
-      <div className={styles.controls} style={{ width: stageW }}>
+      <div className={styles.controls}>
         <div className={styles.scrubRow}>
           <span className={styles.time}>{fmt(playhead)}</span>
           <div className={styles.scrubWrap}>

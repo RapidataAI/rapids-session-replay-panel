@@ -65,6 +65,36 @@ function parseFrame(frame: DataFrame): Parsed {
   };
 }
 
+interface RecordedOrder {
+  index: number;
+  optionOrder: string[];
+}
+
+// Parse the rapid.option.order query (rapid_index + option_order JSON) so the
+// panel can tell /inspect/session the order the user actually saw.
+function parseOrder(frame: DataFrame): RecordedOrder[] {
+  const idxF = frame.fields.find((f) => f.name === 'rapid_index' || f.name === 'index');
+  const ordF = frame.fields.find((f) => f.name === 'option_order');
+  if (!idxF || !ordF) {
+    return [];
+  }
+  const out: RecordedOrder[] = [];
+  for (let i = 0; i < frame.length; i++) {
+    const index = Number(fieldValue(idxF, i));
+    let optionOrder: string[] = [];
+    const raw = fieldValue(ordF, i);
+    try {
+      optionOrder = Array.isArray(raw) ? raw : JSON.parse(String(raw));
+    } catch {
+      optionOrder = [];
+    }
+    if (Number.isFinite(index) && optionOrder.length) {
+      out.push({ index, optionOrder });
+    }
+  }
+  return out;
+}
+
 const fmt = (ms: number) => {
   const s = Math.max(0, Math.round(ms / 1000));
   return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
@@ -261,7 +291,14 @@ const getStyles = () => ({
 
 export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id, replaceVariables }) => {
   const styles = useStyles2(getStyles);
-  const parsed = useMemo(() => (data.series[0] ? parseFrame(data.series[0]) : { taps: [] }), [data.series]);
+  // With two queries (taps + option order), pick each series by its fields.
+  const tapsSeries = useMemo(
+    () => data.series.find((s) => s.fields.some((f) => f.name === 'x' || f.name === 't')) ?? data.series[0],
+    [data.series]
+  );
+  const orderSeries = useMemo(() => data.series.find((s) => s.fields.some((f) => f.name === 'option_order')), [data.series]);
+  const parsed = useMemo(() => (tapsSeries ? parseFrame(tapsSeries) : { taps: [] }), [tapsSeries]);
+  const order = useMemo(() => (orderSeries ? parseOrder(orderSeries) : []), [orderSeries]);
   const timeline = useMemo(() => (parsed.taps.length ? buildTimeline(parsed.taps, options.maxIdleMs ?? 2500) : null), [parsed.taps, options.maxIdleMs]);
 
   const sessionId = (parsed.sessionId || replaceVariables('${session_id}') || '').trim();
@@ -303,8 +340,19 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     }
     setReplayReady(false);
     const onMessage = (e: MessageEvent) => {
-      if (e.data?.source === 'rapidata-session-replay' && e.data?.type === 'ready') {
+      if (e.data?.source !== 'rapidata-session-replay') {
+        return;
+      }
+      if (e.data.type === 'ready') {
         setReplayReady(true);
+      }
+      // The backdrop asks for the recorded presentation order on mount; reply so
+      // it can reorder assets to what the user saw before rendering.
+      if (e.data.type === 'replay-hello' && order.length) {
+        iframeRef.current?.contentWindow?.postMessage(
+          { source: 'rapidata-session-replay', type: 'order', rapids: order },
+          '*'
+        );
       }
     };
     window.addEventListener('message', onMessage);
@@ -313,7 +361,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
       window.removeEventListener('message', onMessage);
       window.clearTimeout(fallback);
     };
-  }, [options.interact, sessionUrl, timeline]);
+  }, [options.interact, sessionUrl, timeline, order]);
 
   useEffect(() => {
     if (!timeline || !playing || !replayReady) {

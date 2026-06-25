@@ -24,6 +24,8 @@ function parseFrame(frame: DataFrame): Parsed {
   const kindF = by('kind');
   const xF = by('x');
   const yF = by('y');
+  const tagF = by('tag') ?? by('tagname');
+  const pathF = by('path') ?? by('element_path');
   const sessF = by('session_id') ?? by('session');
   const vwF = by('vw');
   const vhF = by('vh');
@@ -55,6 +57,8 @@ function parseFrame(frame: DataFrame): Parsed {
       t: Number(fieldValue(tF, i)),
       x: xF ? Number(fieldValue(xF, i)) : 0,
       y: yF ? Number(fieldValue(yF, i)) : 0,
+      tag: tagF ? String(fieldValue(tagF, i) ?? '') || undefined : undefined,
+      path: pathF ? String(fieldValue(pathF, i) ?? '') || undefined : undefined,
     });
   }
   return {
@@ -287,6 +291,82 @@ const getStyles = () => ({
     pointer-events: none;
     z-index: 5;
   `,
+  outer: css`
+    width: 100%;
+    height: 100%;
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    align-items: stretch;
+  `,
+  main: css`
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  `,
+  side: css`
+    width: 210px;
+    flex: none;
+    overflow-y: auto;
+    border-left: 1px solid rgba(128, 128, 128, 0.25);
+    padding: 4px 6px;
+    font-size: 11px;
+  `,
+  sideHead: css`
+    opacity: 0.6;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    margin: 2px 0 6px;
+  `,
+  warn: css`
+    background: rgba(255, 59, 48, 0.14);
+    color: #ff3b30;
+    padding: 3px 6px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+    font-size: 11px;
+  `,
+  tlRow: css`
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 4px;
+    border-radius: 3px;
+    cursor: pointer;
+    &:hover {
+      background: rgba(128, 128, 128, 0.12);
+    }
+  `,
+  tlActive: css`
+    background: rgba(91, 110, 225, 0.18);
+  `,
+  tlTime: css`
+    font-variant-numeric: tabular-nums;
+    opacity: 0.7;
+    min-width: 34px;
+  `,
+  tlTag: css`
+    flex: 1;
+    font-family: monospace;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  `,
+  tlStatus: css`
+    width: 14px;
+    text-align: center;
+  `,
+  tlOk: css`
+    color: #2e9e5b;
+  `,
+  tlBad: css`
+    color: #ff3b30;
+    background: rgba(255, 59, 48, 0.08);
+  `,
 });
 
 export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, height, fieldConfig, id, replaceVariables }) => {
@@ -317,6 +397,11 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   // In interact mode, hold playback until the backdrop says it's rendered, so
   // the first tap doesn't fire during the loading screen. Always ready otherwise.
   const [replayReady, setReplayReady] = useState(!options.interact);
+  // What each replayed tap actually hit (from the backdrop), to flag divergence.
+  const [tapResults, setTapResults] = useState<Record<number, { tag: string | null; path: string | null }>>({});
+  // Bumped on restart to remount the iframe — resets the live backdrop (so the
+  // reward modal reappears) since synthetic clicks can't be un-applied.
+  const [reloadKey, setReloadKey] = useState(0);
 
   const rafRef = useRef<number>();
   const lastTsRef = useRef<number>();
@@ -329,6 +414,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     setPlayhead(0);
     setPlaying(true);
     lastRippleIdxRef.current = -1;
+    setTapResults({});
   }, [timeline]);
 
   // True once the backdrop has said hello. Tracked in a ref so we can send the
@@ -366,6 +452,12 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
         helloRef.current = true;
         sendOrder();
       }
+      // The backdrop reports which element each tap hit, so we can flag taps
+      // that landed on a different element than the original recorded.
+      if (e.data.type === 'tap-result' && typeof e.data.i === 'number') {
+        const { i, tag, path } = e.data;
+        setTapResults((prev) => ({ ...prev, [i]: { tag: tag ?? null, path: path ?? null } }));
+      }
     };
     window.addEventListener('message', onMessage);
     const fallback = window.setTimeout(() => setReplayReady(true), 10000);
@@ -373,7 +465,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
       window.removeEventListener('message', onMessage);
       window.clearTimeout(fallback);
     };
-  }, [options.interact, sessionUrl, timeline, sendOrder]);
+  }, [options.interact, sessionUrl, timeline, sendOrder, reloadKey]);
 
   // If the order query resolves after the backdrop already said hello, send it.
   useEffect(() => {
@@ -404,7 +496,7 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
           lastRippleIdxRef.current = i;
           if (options.interact) {
             iframeRef.current?.contentWindow?.postMessage(
-              { source: 'rapidata-session-replay', type: 'tap', x: r.x, y: r.y },
+              { source: 'rapidata-session-replay', type: 'tap', x: r.x, y: r.y, i },
               '*'
             );
           }
@@ -460,6 +552,12 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
     setPlayhead(0);
     lastRippleIdxRef.current = -1;
     setActiveRipple(null);
+    setTapResults({});
+    // Remount the iframe so the live backdrop resets (reward modal reappears);
+    // synthetic clicks already applied to it can't be rewound otherwise.
+    if (options.interact) {
+      setReloadKey((k) => k + 1);
+    }
     setPlaying(true);
   };
   const onScrub = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -469,11 +567,29 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
   };
   const ended = playhead >= timeline.duration;
 
+  // Validate each replayed tap against the recorded element: did the synthetic
+  // tap land on the same element the original session recorded?
+  const tapStatus = (i: number): 'match' | 'mismatch' | 'pending' | 'na' => {
+    const rec = parsed.taps[i];
+    const res = tapResults[i];
+    if (!rec?.path) {return 'na';}
+    if (!res) {return 'pending';}
+    return res.path === rec.path ? 'match' : 'mismatch';
+  };
+  const mismatchCount = parsed.taps.reduce((acc, _t, i) => (tapStatus(i) === 'mismatch' ? acc + 1 : acc), 0);
+  const showTimeline = options.interact && parsed.taps.some((t) => t.path);
+  const scrubToTap = (i: number) => {
+    const pt = timeline.ripples[i]?.pt ?? 0;
+    setPlayhead(pt);
+    lastRippleIdxRef.current = timeline.ripples.reduce((acc, r, j) => (r.pt <= pt ? j : acc), -1);
+  };
+
   return (
-    <div className={styles.wrap}>
+    <div className={styles.outer}>
+      <div className={styles.main}>
       <div className={styles.stage} style={{ width: stageW, height: stageH }}>
         <div className={styles.inner} style={{ width: canvasW, height: canvasH, transform: `scale(${scale})` }}>
-          <iframe ref={iframeRef} className={styles.frame} src={sessionUrl} title="session backdrop" />
+          <iframe key={reloadKey} ref={iframeRef} className={styles.frame} src={sessionUrl} title="session backdrop" />
         </div>
         {activeRipple && (
           <span
@@ -532,6 +648,36 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
           ))}
         </div>
       </div>
+      </div>
+      {showTimeline && (
+        <div className={styles.side}>
+          {mismatchCount > 0 && (
+            <div className={styles.warn}>⚠ {mismatchCount} tap{mismatchCount > 1 ? 's' : ''} hit a different element than recorded</div>
+          )}
+          <div className={styles.sideHead}>clicks ({parsed.taps.length})</div>
+          {parsed.taps.map((t, i) => {
+            const st = tapStatus(i);
+            const res = tapResults[i];
+            const icon = st === 'match' ? '✓' : st === 'mismatch' ? '✗' : st === 'pending' ? '·' : '–';
+            const title =
+              st === 'mismatch'
+                ? `recorded: ${t.tag ?? '?'}  ${t.path}\nhit:      ${res?.tag ?? '?'}  ${res?.path ?? ''}`
+                : t.path || 'no recorded element path';
+            return (
+              <div
+                key={i}
+                className={cx(styles.tlRow, st === 'mismatch' && styles.tlBad, activeRipple?.key === i && styles.tlActive)}
+                title={title}
+                onClick={() => scrubToTap(i)}
+              >
+                <span className={styles.tlTime}>{fmt(timeline.ripples[i]?.pt ?? 0)}</span>
+                <span className={styles.tlTag}>{t.tag || '?'}</span>
+                <span className={cx(styles.tlStatus, st === 'match' && styles.tlOk, st === 'mismatch' && styles.tlBad)}>{icon}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 };

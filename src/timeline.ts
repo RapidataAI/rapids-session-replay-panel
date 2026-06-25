@@ -2,6 +2,8 @@ export interface Tap {
   t: number; // epoch ms
   x: number; // 0..1 of viewport
   y: number;
+  tag?: string; // recorded element tag (tag.name)
+  path?: string; // recorded element path (element.path), for divergence checks
 }
 
 export interface Segment {

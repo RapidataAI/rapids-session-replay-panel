@@ -71,7 +71,8 @@ const fmt = (ms: number) => {
 };
 
 const SPEEDS = [1, 2, 4, 8];
-const CONTROLS_H = 36;
+const CONTROLS_H = 58;
+const ACCENT = '#5b6ee1';
 
 const getStyles = () => ({
   wrap: css`
@@ -138,32 +139,52 @@ const getStyles = () => ({
   `,
   controls: css`
     display: flex;
-    align-items: center;
-    gap: 8px;
+    flex-direction: column;
+    gap: 4px;
     width: 100%;
     height: ${CONTROLS_H}px;
-    padding: 0 4px;
+    padding: 6px 6px 2px;
     font-size: 12px;
+  `,
+  scrubRow: css`
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  `,
+  ctrlRow: css`
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
   `,
   btn: css`
     cursor: pointer;
     border: none;
     background: transparent;
     color: inherit;
-    font-size: 13px;
-    padding: 2px 6px;
+    font-size: 14px;
+    line-height: 1;
+    padding: 2px 8px;
   `,
   speed: css`
     cursor: pointer;
     border: none;
     background: transparent;
     color: inherit;
-    opacity: 0.55;
-    padding: 2px 4px;
+    opacity: 0.6;
+    font-size: 12px;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
   `,
   speedOn: css`
     opacity: 1;
-    font-weight: 700;
+    color: #fff;
+    font-weight: 600;
+    background: ${ACCENT};
   `,
   scrubWrap: css`
     flex: 1;
@@ -176,6 +197,7 @@ const getStyles = () => ({
     cursor: pointer;
     position: relative;
     z-index: 1;
+    accent-color: ${ACCENT};
   `,
   tick: css`
     position: absolute;
@@ -183,16 +205,16 @@ const getStyles = () => ({
     width: 2px;
     height: 9px;
     margin-top: -4px;
-    background: #ff3b30;
+    background: ${ACCENT};
     border-radius: 1px;
     pointer-events: none;
     transform: translateX(-50%);
+    opacity: 0.65;
   `,
   time: css`
     font-variant-numeric: tabular-nums;
     opacity: 0.8;
-    min-width: 80px;
-    text-align: right;
+    min-width: 42px;
   `,
   dbgMarker: css`
     position: absolute;
@@ -416,28 +438,33 @@ export const SessionReplayPanel: React.FC<Props> = ({ options, data, width, heig
         </div>
       )}
       <div className={styles.controls} style={{ width: stageW }}>
-        <button className={styles.btn} onClick={() => (ended ? restart() : setPlaying((p) => !p))}>
-          {ended ? '↻' : playing ? '❚❚' : '▶'}
-        </button>
-        <div className={styles.scrubWrap}>
-          <input className={styles.scrub} type="range" min={0} max={timeline.duration} value={playhead} onChange={onScrub} />
-          {timeline.ripples.map((r, i) => (
-            <span
-              key={i}
-              className={styles.tick}
-              style={{ left: `${(r.pt / timeline.duration) * 100}%`, background: options.cursorColor || '#ff3b30' }}
-              title={`tap ${i} @ ${fmt(r.pt)}`}
-            />
+        <div className={styles.scrubRow}>
+          <span className={styles.time}>{fmt(playhead)}</span>
+          <div className={styles.scrubWrap}>
+            <input className={styles.scrub} type="range" min={0} max={timeline.duration} value={playhead} onChange={onScrub} />
+            {timeline.ripples.map((r, i) => (
+              <span
+                key={i}
+                className={styles.tick}
+                style={{ left: `${(r.pt / timeline.duration) * 100}%` }}
+                title={`tap ${i} @ ${fmt(r.pt)}`}
+              />
+            ))}
+          </div>
+          <span className={styles.time} style={{ textAlign: 'right' }}>
+            {fmt(timeline.duration)}
+          </span>
+        </div>
+        <div className={styles.ctrlRow}>
+          <button className={styles.btn} onClick={() => (ended ? restart() : setPlaying((p) => !p))} title={ended ? 'replay' : playing ? 'pause' : 'play'}>
+            {ended ? '↻' : playing ? '❚❚' : '▶'}
+          </button>
+          {SPEEDS.map((s) => (
+            <button key={s} className={cx(styles.speed, s === speed && styles.speedOn)} onClick={() => setSpeed(s)}>
+              {s}×
+            </button>
           ))}
         </div>
-        {SPEEDS.map((s) => (
-          <button key={s} className={cx(styles.speed, s === speed && styles.speedOn)} onClick={() => setSpeed(s)}>
-            {s}×
-          </button>
-        ))}
-        <span className={styles.time}>
-          {fmt(playhead)} / {fmt(timeline.duration)}
-        </span>
       </div>
     </div>
   );
